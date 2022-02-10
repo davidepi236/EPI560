@@ -9,22 +9,30 @@ Question 1: Consider the following statement from Mayer-Schonberger and Cukier (
 Other than the fact that they mix up singular and plural by stating that we should let the “data” (plural) speak for “itself” (singular) :-), describe in one paragraph (no longer than one half page) why this statement is problematic. Provide an example illustrating how their interpretation of the scenario may be erroneous.
 
 
+This statement is problematic because if the correlation does not reflect true cause, it would be a spurious correlation - and treating it like a causal effect may not lead to improvement in health in the future. 
 
 
 Question 2) In randomized controlled trial settings, researchers are often interested in estimating per protocol effects. Consider a simple scenario with a randomization indicator R, with R = 0 denoting “assigned to placebo” and R = 1 denoting “assigned to treated”, an adherence indicator A, with A = 0 denoting “did not adhere” and A = 1 denoting “adhered by taking treatment on the day randomized”, and an outcome variable Y , with Y = 1 denoting “event”, and Y = 0 denoting “no event”. Can you write the per protocol effect, defined as being assigned to treatment and adhering relative to being assigned to placebo and adhering, using potential outcomes notation? Write these effects on the risk difference, risk ratio, and odds ratio scales.
 
 
-
+First number = E (exposure), second number = A (adherence)
+risk difference: $$E(Y^{11} - Y^{01})$$
+risk ratio: $$\frac{E(Y^{11})}{E(Y^{01})}$$
+Odds ratio: $$\frac{OddsE(Y^{11})}{OddsE(Y^{01})}$$
 
 
 Question 3) Suppose we conduct a study of the the effect of 6 mg Dexamethasone daily versus placebo on a measure of lung function one week after admission to the hospital due to respiratory symptoms resulting from infection with SARS-CoV-2. Suppose we let Y denote lung function at the end of seven days, and Dj denote Dexamethasone treatment on day j of follow-up (e.g., Dj = 1 denotes treated with Dexamethasone on day j; Dj = 0 denotes not treated with Dexamethasone on day j). Please describe, in words, the effect that the following contrast of potential outcomes captures:
 
 
 
+Difference between the risk if the entire treated population would receive four consecutive days (days 1-4) of treatment versus the risk if the entire treated population would received only three consecutive days of treatment (days 1-3).
+
+
 
 Question 4) Please re-write the right-hand side of the equation in Question 3 more compactly (instead of writing out the exposure value on each of the seven days).
 
 
+$$\frac{E(Y^{d_{4}=1})}{E(Y^{d_{4}=0})}$$
 
 
 Question 5: Please complete the Table under SUTVA:
