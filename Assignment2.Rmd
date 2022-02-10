@@ -31,3 +31,9 @@ $$\frac{E(Y^{d_{4}=1})}{E(Y^{d_{4}=0})}$$
 ## Question 5
 
 
+
+##Question 6
+
+Risk difference: If all smokers quit smoking they would have a 12.9% reduction in risk of high blood pressure (12.9 out of 100 fewer former smokers would not develop high blood pressure)
+Risk  Ratio: If all smokers quit smoking, their risk of high blood pressure would be 53% of the risk if they had continued to smoke.
+Odds Ratio: If all smokers quit smoking, their odds of high blood pressure would be 45% of the odds if the had continued to smoke.
