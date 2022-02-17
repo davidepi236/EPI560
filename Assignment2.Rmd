@@ -58,6 +58,8 @@ The word "exchangeable" is used because you are able to exchange the exposed and
 
 The total number of possible interactions in the model is 4083 because according to the formula provided in the notes, with 12 variables there are 2^12 - 12 - 1 possible interactions. We have verified this formula by summing the number of combinations for 12 choose 2, 12 choose 3, ..., 12 choose 12 (12 choose 0 and 12 choose 1 are excluded as interactions must be between at least 2 variables). The total number of 2-way interactions is the total number of combination of 2 variables which can be calculated using the equation 12!/(10!*2!) = 66 2-way interactions.
 
-## 
+## Question 12
+
+Yes, $$\theta$$ is 0 if exchangeability holds because there is no association between outcome and exposure and thus we would expect that the result of the odds ratio be a null result, 1 (exponentiating 0 is equal to 1). However, if exchangeability does not hold, we know $$\theta$$ is not 0 but it could be any other number. 
 
 
