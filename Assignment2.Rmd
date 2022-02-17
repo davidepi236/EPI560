@@ -32,8 +32,23 @@ $$\frac{E(Y^{d_{4}=1})}{E(Y^{d_{4}=0})}$$
 
 
 
-##Question 6
+## Question 6
 
 Risk difference: If all smokers quit smoking they would have a 12.9% reduction in risk of high blood pressure (12.9 out of 100 fewer former smokers would not develop high blood pressure)
 Risk  Ratio: If all smokers quit smoking, their risk of high blood pressure would be 53% of the risk if they had continued to smoke.
 Odds Ratio: If all smokers quit smoking, their odds of high blood pressure would be 45% of the odds if the had continued to smoke.
+
+## Question 7
+
+The average treatment effect would be more relevant for the relation between quitting smoking and high blood pressure because we are interested in how quitting smoking would affect all smokers. If we only look at effect of quitting smoking among those who were observed to have quit smoking (i.e. effect of treatment on the treated), there may be other confounding factors (e.g. those who quit may tend to engage in more healthier lifestyle changes than those who didn't) that would affect their blood pressure and alter effect of quitting smoking on this subgroup. 
+
+## Question 8
+
+Participant who would still go through second-hand smoking even after he or she quit smoking already, thus the potensial outcome would be affected y the exposure status of other individual.
+
+## Question 9
+
+The authors are assuming consistency and no interference (SUTVA) because these two assumptions are what allow us to equate the observed outcomes conditioned on the treatment to the potential outcomes conditioned on the treatment.
+
+## Question 10
+
