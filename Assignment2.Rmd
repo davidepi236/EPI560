@@ -52,3 +52,12 @@ The authors are assuming consistency and no interference (SUTVA) because these t
 
 ## Question 10
 
+The word "exchangeable" is used because you are able to exchange the exposed and unexposed groups without changing the effect of the exposure, in other words, the effect of exposure on the outcome does not depend on which group receives the exposure. 
+
+## Question 11
+
+The total number of possible interactions in the model is 4083 because according to the formula provided in the notes, with 12 variables there are 2^12 - 12 - 1 possible interactions. We have verified this formula by summing the number of combinations for 12 choose 2, 12 choose 3, ..., 12 choose 12 (12 choose 0 and 12 choose 1 are excluded as interactions must be between at least 2 variables). The total number of 2-way interactions is the total number of combination of 2 variables which can be calculated using the equation 12!/(10!*2!) = 66 2-way interactions.
+
+## 
+
+
