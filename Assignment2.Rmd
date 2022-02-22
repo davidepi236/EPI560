@@ -110,15 +110,13 @@ summary(sw)
 
 ## Question 14:
 
-ANS: Yes
-
-
+ANS: Yes, because the propensity score is just the conditional probability of exposure given the strata in the model, and we are given these probabilities for each stratum.
 
 ## (Bonus?) Question 15:
 
 ```{r}
 propensity_score <- glm(Treatment~s1+s2+s3 , data = df1, family = binomial(link = "logit"))$fitted.values
-exposure <- B0(intercept) + B1(dummy var) + B2(dummy var) + B3(dummy var)
+exposure <- B0 + B1(stratum 1) + B2(stratum 2) + B3(stratum 3)
 ```
 
 
