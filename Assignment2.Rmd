@@ -63,7 +63,7 @@ The total number of possible interactions in the model is 4083 because according
 Yes, $$\theta$$ is 0 if exchangeability holds because there is no association between outcome and exposure and thus we would expect that the result of the odds ratio be a null result, 1 (exponentiating 0 is equal to 1). However, if exchangeability does not hold, we know $$\theta$$ is not 0 but it could be any other number. 
 
 
-**Question 13:** Install the AIPW package from CRAN and load the library. Then load the "eager_sim_obs" dataset using the data("eager_sim_obs") command. Using these data, generate (i) a propensity score over lap plot, (ii) a list of the five largest and smallest propensity scores, and (iii) the summary distribution of the stabilized inverse probability weights using a propensity score model that adjusts for eligibility, loss_num, age, time_try_pregnant, BMI, and meanAP. Is positivity violated in these data? Why or why not?
+## Question 13
 
 ANS: The mean of the stabilized weights is 1, and the max weight is not large at all, suggesting very well-behaved weights. Thus, in this particular case, we are not concerned with violations of the positivity assumption.
 
@@ -108,13 +108,13 @@ summary(sw)
 ```
 
 
-**Question 14:** Consider a two-arm placebo controlled randomized trial with four mutually exclusive strata labeled S = 1,S = 2,S = 3 and S = 4. Suppose that the treatment was assigned to: 20% of individuals in stratum S = 1; 30% of individuals in stratum S = 2; 15% of individuals in stratum S = 3; and 10% of individuals in stratum S = 4. Can you determine all of the propensity score values in the sample of individuals in the trial?
+## Question 14:
 
 ANS: Yes
 
 
 
-**(Bonus?) Question 15** Using the information provided in Question 14, please write a logistic regression equation that the defines the propensity score for this randomized trial. What are the parameter values in this logistic regression model?
+## (Bonus?) Question 15:
 
 ```{r}
 propensity_score <- glm(Treatment~s1+s2+s3 , data = df1, family = binomial(link = "logit"))$fitted.values
