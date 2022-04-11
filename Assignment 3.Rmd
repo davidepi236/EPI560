@@ -1,0 +1,294 @@
+---
+title: "EPI560 Assignment 3"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+library(dplyr)
+library(readr)
+library(AIPW)
+library(broom)
+library(sandwich)
+library(boot)
+library(ggplot2)
+library(lmtest)
+library(VGAM)
+library(gtools)
+library(tidyr)
+library(survival)
+```
+
+```{r}
+relapse<-read.csv("C:\\Users\\david\\OneDrive\\Desktop\\Emory\\Class\\Spring 2022\\EPI560\\Data\\relapse.csv")
+nhef<-read.csv("C:\\Users\\david\\OneDrive\\Desktop\\Emory\\Class\\Spring 2022\\EPI560\\Data\\nhefs_data.csv")
+```
+
+**Question 1: Why do the logistic, log, and identity link functions enable us to interpret coefficient as a log-odds ratios, log-risk ratios, and risk differences? Please show the math.**
+$$
+Logit:
+
+log[\frac{P(Y=1|X=1)}{1-P(Y=1|X=1)}] - log[\frac{P(Y=1|X=0)}{1-P(Y=1|X=0)}] = [b_0+b_1(X=1)]-[b_0+b_1(X=0)]
+log(A)-log(B) = log(A/B)
+
+log(OR) = b_1
+$$
+
+$$
+Log:
+
+log[P(Y=1|X=1)]-log[P(Y=1|X=0)] = [b_0+b_1(X=1)]-[b_0+b_1(X=0)]
+
+log(\frac{P(Y=1|X=1)}{P(Y=1|X=0)})=log(RR)=b_1
+
+RR = exp(b_1)
+
+Risk difference:
+
+P(Y=1|X=1)-P(Y=1|X=0) = [b_0+b_1(X=1)]-[b_0+b_1(X=0)] = b_1
+$$
+
+
+**Question 2) Using the NHEFS dataset (available on CANVAS), please plot the unadjusted dose-response relation between smoking intensity and the risk of high blood pressure.**
+
+```{r}
+library(gtools)
+
+ls(nhef)
+nhef2<-nhef %>% 
+  mutate(smoke_quant=ifelse(smokeintensity<=1,1,
+                            ifelse(smokeintensity<=10,2,
+                                   ifelse(smokeintensity<=20,3,
+                                          ifelse(smokeintensity<=30,4,5)))))
+
+q2<-glm(high_BP~factor(smoke_quant),data=nhef2,family = binomial("log"))
+
+
+rr<-exp(q2$coefficients)
+ci<-exp(confint(q2))
+
+rr_ci<-cbind(rr,ci)
+
+rr_ci<-as.data.frame(rr_ci)
+
+rr_ci$quant <- row.names(rr_ci)
+
+rr_ci<-rr_ci %>% 
+  filter(quant!="(Intercept)")
+
+ggplot(rr_ci,aes(y=quant))+
+    geom_pointrange(data=rr_ci,mapping=aes(x=rr,xmin=rr_ci$`2.5 %`,xmax=rr_ci$`97.5 %`))+
+  geom_vline(xintercept = 1,linetype=2)
+```
+
+
+**Question 3) Using the NHEFS data and an outcome regression model, estimate the conditionally and marginally adjusted risk ratio and risk difference for the association between quitting smoking and high blood pressure. Adjust for smoke intensity, sex, age, race, school, and marital status. Please use appropriate coding for all variables, but do not adjust for interaction effects. As always, use appropriate standard error estimators.**
+
+```{r}
+ls(nhef)
+
+nhef<-nhef %>% 
+  mutate(marital=ifelse(marital==6,5,
+                        ifelse(marital==8,2,marital)),
+         school_cat=ifelse(school<9,1,
+                           ifelse(school<=12,2,3)))
+
+
+ggplot(aes(nhef$sbp,age),data=nhef)+
+  geom_point()+
+  geom_abline()
+
+#Conditionally Adjusted Risk Ratio (RR)
+modelRR <- glm(high_BP~qsmk+smokeintensity+sex+race+age+factor(marital)+school_cat, data = nhef,family = poisson("log"))
+rr_result<-tidy(modelRR)[2,]
+rr_result_exp<-exp(rr_result$estimate)
+
+#95% CI
+RR_SE<-sqrt(sandwich(modelRR)[2, 2])
+RR_CI_LL<-exp(round(rr_result$estimate-1.96*RR_SE,2))
+RR_CI_HL<-exp(round(rr_result$estimate+1.96*RR_SE,2))
+
+
+
+#Conditionally Adjusted Risk Difference (RD)
+modelRD <- glm(high_BP~qsmk+smokeintensity+sex+race+age+factor(marital)+school_cat, data = nhef, family = gaussian("identity"))
+rd_result<-tidy(modelRD)[2,]
+
+#95% CI
+sqrt(sandwich(modelRD)[2, 2])
+
+
+
+#Marginally Adjusted Treatment Effect
+ms_model <- glm(high_BP~qsmk+smokeintensity+sex+race+age+factor(marital)+school_cat,data=nhef,family = binomial("logit"))
+
+mu1 <- predict(ms_model, newdata = transform(nhef,qsmk = 1), type = "response")
+mu0 <- predict(ms_model, newdata = transform(nhef,qsmk = 0), type = "response")
+
+
+#Marginally adjusted Risk Ratio (RR)
+marg_stand_RR <- mean(mu1)/mean(mu0)
+#Marginally adjusted Risk Difference (RD)
+marg_stand_RD <- mean(mu1) - mean(mu0)
+
+#95% CI
+bootfunc <- function(data, index) {
+  boot_dat <- data[index, ]
+  ms_model <- glm(high_BP~qsmk+smokeintensity+sex+race+age+factor(marital)+school_cat, data = boot_dat,
+  family = binomial("logit"))
+  mu1 <- predict(ms_model, newdata = transform(boot_dat, qsmk = 1), type = "response")
+  mu0 <- predict(ms_model, newdata = transform(boot_dat, qsmk = 0), type = "response")
+  marg_stand_OR_ <- (mean(mu1)/mean(1 - mu1))/(mean(mu0)/mean(1 - mu0))
+  marg_stand_RR_ <- mean(mu1)/mean(mu0)
+  marg_stand_RD_ <- mean(mu1) - mean(mu0)
+  res <- c(marg_stand_RD_, marg_stand_RR_,marg_stand_OR_)
+return(res)
+}
+
+set.seed(123)
+boot_res <- boot(nhef, bootfunc, R = 2000)
+boot_RR <- boot.ci(boot_res, index = 2)
+boot_RD <- boot.ci(boot_res, index = 1)
+
+```
+
+
+**Question 5: Using the NHEFS data and a propensity score model with IP weighting, estimate the marginally adjusted risk ratio and risk difference for the association between quitting smoking and high blood pressure. Adjust for smoke intensity, sex, age, race, school, and marital status. Please use appropriate coding for all variables, but do not adjust for interaction effects. As always, use appropriate standard error estimators.**
+```{r}
+#weighting
+nhef$propensity_score <- glm(qsmk~smokeintensity+sex+race+age+factor(marital)+factor(school_cat),data = nhef, family = binomial("logit"))$fitted.values
+
+nhef$sw <- (mean(nhef$qsmk)/nhef$propensity_score) *nhef$qsmk + ((1 - mean(nhef$qsmk))/(1 - nhef$propensity_score)) * (1 - nhef$qsmk)
+nhef$sw_norm <- nhef$sw/max(nhef$sw)
+
+
+#IPW Weighting(Marginal)
+model_RR_weighted <- glm(high_BP ~ qsmk, data = nhef, weights = sw, family = quasibinomial("log"))
+mu1_sw_log <- predict(model_RR_weighted, newdata = transform(nhef,qsmk = 1), type = "response")
+mu0_sw_log<- predict(model_RR_weighted, newdata = transform(nhef,qsmk = 0), type = "response")
+#Marginally adjusted Risk Ratio (RR)_SW
+marg_stand_RR_sw <- mean(mu1_sw_log)/mean(mu0_sw_log)
+
+
+model_RD_weighted <- glm(high_BP ~ qsmk, data = nhef, weights = sw, family = quasibinomial("identity"))
+mu1_sw <- predict(model_RD_weighted, newdata = transform(nhef,qsmk = 1), type = "response")
+mu0_sw <- predict(model_RD_weighted, newdata = transform(nhef,qsmk = 0), type = "response")
+#Marginally adjusted Risk Difference (RD)_SW
+marg_stand_RD_sw <- mean(mu1_sw) - mean(mu0_sw)
+
+
+#Marginally adjusted Risk Ratio (RR)_SW
+marg_stand_RR_sw <- mean(mu1_sw)/mean(mu0_sw)
+#Marginally adjusted Risk Difference (RD)_SW
+marg_stand_RD_sw <- mean(mu1_sw) - mean(mu0_sw)
+
+
+#CI-RR
+coeftest(model_RR_weighted, vcov. = vcovHC)
+RR_CI_LL_SW<-exp(round(-0.530401-1.96*0.127632,2))
+RR_CI_HL_SW<-exp(round(-0.530401+1.96*0.127632,2))
+
+
+#CI-RD
+coeftest(model_RD_weighted, vcov. = vcovHC)
+RD_CI_LL_SW<-round(-0.111147-1.96*0.022311,2)
+RD_CI_HL_SW<-round(-0.111147+1.96*0.022311,2)
+```
+
+
+
+**Question 6: Is the positivity assumption met for the propensity score model fit in Question 5? Is the positivity assumption required to interpret the estimate in Question 5 AND Question 3 as a causal contrast of potential outcomes? Why?**
+```{r}
+propensity_score <- glm(qsmk~smokeintensity+sex+race+age+factor(marital)+factor(school_cat),data = nhef, family = binomial("logit"))$fitted.values
+
+plot_data <- data.frame(propensity_score,Exposure = as.factor(nhef$qsmk))
+
+p1 <-
+  ggplot(data = plot_data) + 
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(expand = c(0,0)) +
+  ylab("Density") +
+  xlab("Propensity Score") +
+  scale_color_manual(values = c("#000000","#D55E00")) +
+  geom_density(aes(x = propensity_score,group = Exposure, color = Exposure)) +
+  xlim(0, 1)
+p1
+```
+
+ANS: The positivity is met according to the propensity score plot and the mean of the weighting is 0.99, which indicates it doesn't violate the assumption. The positivity assumption is not required for the estimate in Question 5, but it is required for question 3, because by doing inverse positivity weighting, we are "artificially" imposing positivity assumption onto the dataset, therefore, it is not required for question5. 
+
+
+**Question 7: Consider the stem cell transplant data available on CANVAS. These data contain information on 177 patients who received stem cell transplants for leukemia treatment. The event of interest in these data is relapse, which occurred in 56 individuals. Competing events include transplant-related death, which occurred in 75 individuals. Finally, 46 individuals were censored in the study. The goal of this study is to evaluate the effect of transplant source (Type of Transplant) on relapse rates, adjusting for sex, disease type (lymphoblastic or myeloblastic leukemia, abbreviated as ALL and AML, respectively), phase at transplant (Relapse, CR1, CR2, CR3), source of stem cells (bone marrow and peripheral blood, coded as BM+PB, or peripheral blood, coded as PB), and age. Please plot the cumulative sub-distribution risk of relapse (Status = 1) among those who received bone marrow and peripheral blood (BM+PB) transplants relative to those who received peripheral blood (PB) alone.**
+```{r}
+relapse2<-relapse %>% 
+  mutate(ftime_round=ceiling(ftime),
+         ID=row_number())
+
+
+relapse3<-relapse2 %>% 
+  uncount(as.numeric(ftime_round)) %>% 
+  group_by(ID) %>%
+  mutate(counter = 1, 
+         time_var = cumsum(counter), 
+         last_id = !duplicated(ID, fromLast = T),  
+         outcome_two = Status*last_id) %>% 
+ungroup(ID) %>%
+select(ID,time_var,ftime,Source,Sex,D,Age,Phase,outcome_two)
+
+
+pmr1 <- vglm(outcome_two ~ scale(time_var)+Source+Sex+D+Age+Phase, data = relapse3, family = multinomial(refLevel = 1))
+
+summary(pmr1)@coef3[c("SourcePB:1", "SourcePB:2"),]
+```
+
+
+**Please plot the cumulative sub-distribution risk of relapse (Status = 1) among those who received bone marrow and peripheral blood (BM+PB) transplants relative to those who received peripheral blood (PB) alone.**
+```{r}
+mu_1 <- tibble(relapse3, mu_1 = predict(pmr1, newdata = relapse3, type = "response")[, 2])
+
+mu_1_mean<-mu_1 %>% 
+  group_by(time_var) %>% 
+  summarise(mu_avg=mean(mu_1))
+
+mu_1_mean<-mu_1_mean %>% 
+  mutate(cum_risk=cumsum(mu_avg))
+
+
+
+ggplot() + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0,1)) + 
+  scale_x_continuous(expand = c(0, 0)) + 
+  ylab("Cumulative Risk") +
+  xlab("Time on Study") + 
+  geom_step(data = mu_1_mean, aes(x = time_var,y = cum_risk))
+```
+
+
+**Question 8: What is the 100 day sub-distribution risk difference (and valid 95% CIs) for relapse among those assigned to BM + PB versus to PB alone?**
+```{r}
+mu_11 <- tibble(relapse3, mu_11 = predict(pmr1,newdata = transform(relapse3, Source = "BM+PB" ),type = "response")[, 2])
+mu_10 <- tibble(relapse3, mu_10 = predict(pmr1,newdata = transform(relapse3, Source = "PB"),type = "response")[, 2])
+
+
+
+mu_11 <- mu_11 %>%
+group_by(time_var) %>%
+summarize(mean_mu_11 = mean(mu_11))
+
+mu_10 <- mu_10 %>%
+group_by(time_var) %>%
+summarize(mean_mu_10 = mean(mu_10))
+
+mu_11 <- mu_11 %>%
+  mutate(cum_risk = cumsum(mean_mu_11))
+
+mu_10 <- mu_10 %>%
+  mutate(cum_risk = cumsum(mean_mu_10))
+
+
+
+
+```
+
