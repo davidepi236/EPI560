@@ -1,0 +1,54 @@
+---
+title: "EPI560 Final Assignment"
+output: html_document
+---
+
+Package
+```{r}
+library(dplyr)
+library(readxl)
+```
+
+Data Read in
+```{r}
+data <- read.csv("C:\\Users\\david\\OneDrive\\Desktop\\Emory\\Class\\Spring 2022\\EPI560\\Final\\aspirin.csv")
+```
+
+
+**Question 1: Using the aspirin.csv data, please estimate the marginally adjusted average treatment effect using IP-weighting and marginal standardization for the relation between aspirin and live birth on the risk difference scale. Adjust for eligibility stratum, number of prior losses, age, number of prior pregnancy attempts, BMI, and mean arterial pressure. Code these variables appropriately, and use the appropriate variance estimator to obtain 95% confidence intervals.**
+```{r}
+
+```
+
+**Question 2: Please interpret the results of the analyses in question 1.**
+```{r}
+
+```
+
+**Question 3: Suppose you fit an outcome regression model to answer question 1 that included only seven main effect terms (one for the exposure, and one for each confounder). In other words, suppose that there were no additional spline, polynomial, or dummy variables in the model (i.e., only seven terms). How many possible 2-way interactions could you have included in this model? How many possible k-way interactions could you have included in this model?**
+```{r}
+
+```
+
+**Question 4: The outcome in the aspirin.csv data is an indicator of whether live birth occurred at any point during follow-up. The data do not include a variable for precisely when this outcome occurred during follow-up. Additionally, the zero value for the live birth outcome indicates that administrative end of follow-up for an individual (i.e., there were no withdrawals from the study). Is the aspirin study outcome subject to left and/or right censoring? Why or why not?**
+```{r}
+
+```
+
+**Question 5: Suppose the aspirin study above provided an outcome variable with three categories: live birth (coded as 2), pregnancy loss (coded as 1), and administrative end of follow-up (coded as 0). Pregnancy loss,in this scenario, is a competing event for live birth. Suppose further that you used IP-weighting or marginal standardization to compute the risk difference for the effect of aspirin on live birth, and you would have censored pregnancy losses. Specifically what type of risk difference would you have estimated? What kinds of problems would arise if you wanted to interpret the real-world effects of aspirin on live birth?**
+```{r}
+
+```
+
+**Question 6: Consider the following DAG: where Ajis an exposure of interest, Cjis a (possibly vector-valued) confounder set of interest, and Yjis an outcome of interest, with j indexing study follow-up time (i.e., time-dependent complex longitudinal data). Suppose interest lies in the causal effect of A on Y . Why are g Methods required for analyzing data generated from a DAG such as this? Why can't standard regression adjustment be used?**
+
+![](C:/Users/david/AppData/Local/RStudio/tmp/paste-26CC1482.png)
+```{r}
+
+```
+
+**Question 7: Suppose we were interested in estimating the conditionally adjusted risk difference for the relation between aspirin and live birth. Describe three strategies you can use (including variance estimation) to do this with the aspirin data.**
+```{r}
+
+```
+
