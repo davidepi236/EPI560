@@ -17,7 +17,7 @@ data <- read.csv("C:\\Users\\david\\OneDrive\\Desktop\\Emory\\Class\\Spring 2022
 
 **Question 1: Using the aspirin.csv data, please estimate the marginally adjusted average treatment effect using IP-weighting and marginal standardization for the relation between aspirin and live birth on the risk difference scale. Adjust for eligibility stratum, number of prior losses, age, number of prior pregnancy attempts, BMI, and mean arterial pressure. Code these variables appropriately, and use the appropriate variance estimator to obtain 95% confidence intervals.**
 ```{r}
-One with IPW and one with marginal standardization
+One with IPW and one with marginal standardization (g comp)
 ```
 
 **Question 2: Please interpret the results of the analyses in question 1.**
