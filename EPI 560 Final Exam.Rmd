@@ -1,0 +1,185 @@
+---
+title: "EPI 560 Final Exam"
+author: "John Shen, Elaina Sinclair, Zihao Liu"
+date: "4/26/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Loading required packages
+packages <- c("tidyverse","here","splines","skimr","broom","kableExtra",
+              "lmtest","sandwich","knitr","gridExtra")
+
+for (package in packages) {
+  if (!require(package, character.only=T, quietly=T)) {
+    install.packages(package, repos='http://lib.stat.cmu.edu/R/CRAN')
+  }
+}
+
+for (package in packages) {
+  library(package, character.only=T)
+}
+```
+
+```{r, include = FALSE}
+# Reading in the data
+data <- read.csv("C:\\Users\\johns\\OneDrive\\Desktop\\RSPH Spring 2022\\EPI 560\\aspirin.csv")
+
+skim_without_charts(data)
+
+# Exploring categorical variables
+table(data$eligibility)
+table(data$loss_num)
+table(data$time_try_pregnant)
+hist(data$time_try_pregnant)
+
+# Exploring continuous variables
+hist(data$BMI)
+hist(data$meanAP)
+hist(data$age)
+
+# Testing for interaction
+model_int_mult <- glm(live_birth ~ exposure + exposure *(eligibility + factor(time_try_pregnant) + BMI + age + meanAP + loss_num), 
+                 data=data,
+                 family=binomial("logit"))
+
+tidy(model_int_mult) %>% filter(grepl(":", term))
+
+# significant interaction between exposure and 3 covariates: eligibility, age, meanAP
+# significant interaction between exposure and one of the time_try_pregnant levels (time_try_pregnant = 7), but in the interest of not adding too many parameters to the model, because this interaction was only in one level it was not included
+```
+
+**Question 1: Using the aspirin.csv data, please estimate the marginally adjusted average treatment effect using IP-weighting and marginal standardization for the relation between aspirin and live birth on the risk difference scale. Adjust for eligibility stratum, number of prior losses, age, number of prior pregnancy attempts, BMI, and mean arterial pressure. Code these variables appropriately, and use the appropriate variance estimator to obtain 95% confidence intervals.**
+```{r, include = FALSE}
+## Marginal standardization
+
+# With splines, but no splines in the interaction terms
+  model_1 <- glm(live_birth ~ exposure + eligibility + loss_num + factor(time_try_pregnant) + bs(BMI, df=3, degree = 3) + bs(age, df=3, degree = 3) + bs(meanAP, df=3, degree = 3) + exposure:eligibility + exposure:age + exposure:meanAP, 
+                data=data, 
+                family=binomial("logit"))
+  
+  mu1 <- predict(model_1,newdata=transform(data,exposure=1),type="response")
+  mu0 <- predict(model_1,newdata=transform(data,exposure=0),type="response")
+  
+  ATE_RD <- mean(mu1) - mean(mu0)
+
+# Without splines
+  model_2 <- glm(live_birth ~ exposure + eligibility + loss_num + factor(time_try_pregnant) + BMI + age + meanAP + exposure:eligibility + exposure:age + exposure:meanAP,
+                data=data,
+                family=binomial("logit"))
+  
+  mu1_2 <- predict(model_2,newdata=transform(data,exposure=1),type="response")
+  mu0_2 <- predict(model_2,newdata=transform(data,exposure=0),type="response")
+  
+  ATE_RD_2 <- mean(mu1_2) - mean(mu0_2)
+
+# With splines and splines in the interaction terms
+  model_3 <- glm(live_birth ~ exposure + eligibility + loss_num + factor(time_try_pregnant) + bs(BMI, df=3, degree = 3) + bs(age, df=3, degree = 3) + bs(meanAP, df=3, degree = 3) + exposure:eligibility + exposure:bs(age, df=3, degree = 3) + exposure:bs(meanAP, df=3, degree = 3),
+                data=data,
+                family=binomial("logit"))
+  
+  mu1_3 <- predict(model_3,newdata=transform(data,exposure=1),type="response")
+  mu0_3 <- predict(model_3,newdata=transform(data,exposure=0),type="response")
+  
+  ATE_RD_3 <- mean(mu1_3) - mean(mu0_3)
+
+# Inclusion of lower order splines and interaction spline terms does not appear to have a substantial effect on marginal ATE.
+# We don't believe we can assume linearity in BMI, age, and meanAP based on our initial exploration, so we are using splines in the "lower order" terms (the main effects, not the interaction terms). Not using splines in interaction terms because we aren't confident our sample size is large enough.
+# Therefore, we choose model_1
+  
+ATE_RD_ <- NULL
+
+# Bootstrap to obtain valid 95% CI
+for(iteration in 1:200){
+  set.seed(iteration)
+  index <- sample(1:nrow(data),nrow(data),replace=T)
+  boot_dat <- data[index,]
+  model1 <- glm(live_birth ~ exposure + eligibility + loss_num + factor(time_try_pregnant) + bs(BMI, df=3, degree = 3) + bs(age, df=3, degree = 3) + bs(meanAP, df=3, degree = 3) + exposure:eligibility + exposure:age + exposure:meanAP, 
+              data=boot_dat, 
+              family=binomial("logit"))
+  
+  mu1_ <- predict(model1,newdata=transform(data,exposure=1),type="response")
+  mu0_ <- predict(model1,newdata=transform(data,exposure=0),type="response")
+  
+  ATE_RD_ <- rbind(ATE_RD_, mean(mu1_) - mean(mu0_))
+  
+}
+
+UCL_RD <- ATE_RD + 1.96*sd(ATE_RD_)
+LCL_RD <- ATE_RD - 1.96*sd(ATE_RD_)
+
+tibble(Adjustment = "Marginally Standardization",
+                            ATE = round(ATE_RD*100,2),
+                            LCL = round(LCL_RD*100,2),
+                            UCL = round(UCL_RD*100,2))
+
+## IPW-Weighting
+
+# Creating the propensity score
+data$propensity_score <- glm(exposure ~ eligibility + loss_num + time_try_pregnant + BMI + age + meanAP ,data = data, family = binomial("logit"))$fitted.values
+
+data$sw <- (mean(data$exposure)/data$propensity_score) *data$exposure + ((1 - mean(data$exposure))/(1 - data$propensity_score)) * (1 - data$exposure)
+
+summary(data$sw) # no need to normalize because mean ~ 1
+
+# IP-weighted model estimating marginally adjusted ATE 
+model_RD_weighted <- glm(live_birth ~ exposure, data = data, weights = sw, family = quasibinomial("identity"))
+mu1_sw <- predict(model_RD_weighted, newdata = transform(data,exposure = 1), type = "response")
+mu0_sw<- predict(model_RD_weighted, newdata = transform(data,exposure = 0), type = "response")
+
+#IPW Weighting Risk Difference
+ipw_RD_sw <- mean(mu1_sw) - mean(mu0_sw)
+ipw_RD_sw
+
+# Compute valid 95% CI
+ipw_RD_se <- coeftest(model_RD_weighted, vcov. = vcovHC)[2,2]
+ipw_UCL_RD <- ipw_RD_sw + 1.96*ipw_RD_se
+ipw_LCL_RD <- ipw_RD_sw - 1.96*ipw_RD_se
+
+tibble(Adjustment = "IP Weighted",
+                            ATE = round(ipw_RD_sw*100,2),
+                            LCL = round(ipw_LCL_RD*100,2),
+                            UCL = round(ipw_UCL_RD*100,2))
+```
+
+```{r, echo=FALSE}
+# Create table
+collapse_rows_dt <- data.frame(
+  Adjustment = c("Marginal Standardization","IP-Weighting"),
+  ATE = c(round(ATE_RD*100,2), round(ipw_RD_sw*100,2)),
+  LCL = c(round(LCL_RD*100,2),round(ipw_LCL_RD*100,2)),
+  UCL = c(round(UCL_RD*100,2),round(ipw_UCL_RD*100,2))
+)
+
+kbl(collapse_rows_dt, booktabs = T, align = "c", caption="Table 1: Estimates of the marginally adjusted average treatment effect for the relation between aspirin and live birth on the risk difference scale.") %>%
+  collapse_rows(columns=1, latex_hline = "major", valign = "middle") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+**Question 2: Please interpret the results of the analyses in question 1.**
+
+For every 100 pregnancies, there would have been 9.15 more live births if everyone had been treated with aspirin (taking 81 mg aspirin at least 5 days per week consistently over follow-up) compared to if everyone had not been treated with aspirin (marginal standardization). When this estimate was marginally adjusted with IP-weighting, there would have been 8.79 more live births for every 100 pregnancies if everyone had been treated with aspirin versus if everyone had not been treated with aspirin.
+
+**Question 3: Suppose you fit an outcome regression model to answer question 1 that included only seven main effect terms (one for the exposure, and one for each confounder). In other words, suppose that there were no additional spline, polynomial, or dummy variables in the model (i.e., only seven terms). How many possible 2-way interactions could you have included in this model? How many possible k-way interactions could you have included in this model?**
+
+There would be 21 2-way interactions (combinations of 7 choose 2). 
+
+21 + 35 + 35 + 21 + 7 + 1 = 120 k-way interactions could have been included in this model. This represents the sum of combinations of 7 choose 2, 7 choose 3,..., and 7 choose 7.
+
+**Question 4: The outcome in the aspirin.csv data is an indicator of whether live birth occurred at any point during follow-up. The data do not include a variable for precisely when this outcome occurred during follow-up. Additionally, the zero value for the live birth outcome indicates that administrative end of follow-up for an individual (i.e., there were no withdrawals from the study). Is the aspirin study outcome subject to left and/or right censoring? Why or why not?**
+
+The aspirin study outcome is subject to right censoring because after the administrative end of follow-up the person no longer contributes time to the study and we do not know their eventual outcome.
+
+**Question 5: Suppose the aspirin study above provided an outcome variable with three categories: live birth (coded as 2), pregnancy loss (coded as 1), and administrative end of follow-up (coded as 0). Pregnancy loss,in this scenario, is a competing event for live birth. Suppose further that you used IP-weighting or marginal standardization to compute the risk difference for the effect of aspirin on live birth, and you would have censored pregnancy losses. Specifically what type of risk difference would you have estimated? What kinds of problems would arise if you wanted to interpret the real-world effects of aspirin on live birth?**
+
+We would have estimated a cause-specific risk difference. Using this estimate would be problematic because we would be estimating the risk difference if we could prevent all pregnancy loss, but this is not something we are clinically able to do in the real world.
+
+**Question 6: Consider the following DAG: where Ajis an exposure of interest, Cjis a (possibly vector-valued) confounder set of interest, and Yjis an outcome of interest, with j indexing study follow-up time (i.e., time-dependent complex longitudinal data). Suppose interest lies in the causal effect of A on Y . Why are g Methods required for analyzing data generated from a DAG such as this? Why can't standard regression adjustment be used?**
+
+![](C:/Users/johns/OneDrive/Desktop/RSPH Spring 2022/EPI 560/time_varying.png)
+
+Because we are interested in the total effect of A on Y, we cannot control on any mediators along causal paths between any A and Yj (i.e., we want to capture both the indirect and direct effects). Using a standard regression would block some of the indirect effects because some mediators are also confounding for A at subsequent time points (Aj). G methods allow us to model the entire data generating mechanism and not just a part, utilizing the law of total probability to capture the total effect.
+
+**Question 7: Suppose we were interested in estimating the conditionally adjusted risk difference for the relation between aspirin and live birth. Describe three strategies you can use (including variance estimation) to do this with the aspirin data.**
+
+The three strategies we can use are binomial regression with an identity link, gaussian regression with an identity link, and least squares regression. We would start with the binomial regression because live birth is a binary outcome, however, because predicted probabilities do not necessarily converge between 0 and 1, there is a possibility that this model would not converge. If this were the case, we would try either the gaussian with identity link or least squares regression. For all three models, we would use the robust variance estimator (sandwich) because we can't quantify sample size and the effect size is small. 
